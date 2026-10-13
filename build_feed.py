@@ -11,8 +11,20 @@ MAX_ITEMS, MAX_BYTES = 10, 400 * 1024
 CUTOFF = "2026-10-11T16:00:00Z"
 
 req = urllib.request.Request(SRC, headers={"User-Agent": "Mozilla/5.0 (apm-blog-feed)"})
-raw = urllib.request.urlopen(req, timeout=60).read().decode("utf-8")
-ET.fromstring(raw.encode())  # source must parse
+import time
+raw = None
+for attempt in range(4):
+    try:
+        raw = urllib.request.urlopen(req, timeout=60).read().decode("utf-8")
+        ET.fromstring(raw.encode())  # source must parse
+        break
+    except Exception as e:
+        print(f"fetch attempt {attempt+1} failed: {e!r}", file=sys.stderr)
+        raw = None
+        time.sleep(20 * (attempt + 1))
+if raw is None:
+    print("Source feed unavailable; keeping existing feed.xml", file=sys.stderr)
+    sys.exit(0)
 
 # Work on raw text so namespaces, CDATA and attributes are preserved byte-for-byte.
 first = raw.find("<item")
